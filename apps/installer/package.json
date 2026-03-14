@@ -1,0 +1,38 @@
+{
+  "name": "@midnightceo/installer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MidnightCEO Local Compute Mode — menu bar app and installer",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --mac",
+    "package": "electron-builder --mac --dir",
+    "dev": "NODE_ENV=development electron ."
+  },
+  "dependencies": {
+    "electron-store": "^8.1.0"
+  },
+  "devDependencies": {
+    "electron": "^28.1.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.midnightceo.local",
+    "productName": "MidnightCEO",
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "icon": "assets/icon.png",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "assets/**/*",
+      "package.json"
+    ]
+  }
+}

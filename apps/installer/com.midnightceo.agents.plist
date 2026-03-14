@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  MidnightCEO — macOS LaunchAgent
+  
+  This plist configures macOS to start MidnightCEO Local Compute Mode
+  automatically when the user logs in.
+
+  Installation:
+    cp com.midnightceo.agents.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.midnightceo.agents.plist
+
+  Removal:
+    launchctl unload ~/Library/LaunchAgents/com.midnightceo.agents.plist
+    rm ~/Library/LaunchAgents/com.midnightceo.agents.plist
+
+  Note:
+    The setup.sh script handles installation automatically.
+    Paths containing __PLACEHOLDER__ are substituted by setup.sh at install time.
+-->
+<plist version="1.0">
+<dict>
+    <!-- Unique identifier for this LaunchAgent -->
+    <key>Label</key>
+    <string>com.midnightceo.agents</string>
+
+    <!--
+      Program to execute on login.
+      Uses docker compose to bring up the local compute stack.
+      The PATH environment variable below ensures docker is found
+      regardless of how it was installed (Homebrew, Docker Desktop, etc.).
+    -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <string>
+            # Wait for Docker daemon to be ready (up to 120 seconds)
+            TIMEOUT=120
+            ELAPSED=0
+            while ! /usr/local/bin/docker info > /dev/null 2>&amp;1; do
+                if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+                    echo "Docker daemon not available after ${TIMEOUT}s — aborting"
+                    exit 1
+                fi
+                sleep 5
+                ELAPSED=$((ELAPSED + 5))
+            done
+            # Start containers
+            /usr/local/bin/docker compose -f "$HOME/.midnightceo/docker-compose.local.yml" up -d
+        </string>
+    </array>
+
+    <!-- Start when the user logs in -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!--
+      KeepAlive policy:
+      - Restart only if the process exits with a non-zero status.
+      - Do NOT keep alive if it exits cleanly (e.g. manual stop).
+    -->
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+
+    <!--
+      Throttle interval — do not restart more frequently than every 30 seconds
+      to avoid a crash loop hammering Docker.
+    -->
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+
+    <!--
+      Start interval — if the process exits cleanly, wait 5 minutes
+      before running again (acts as a periodic health check).
+    -->
+    <key>StartInterval</key>
+    <integer>300</integer>
+
+    <!-- Redirect stdout and stderr to log files for debugging -->
+    <key>StandardOutPath</key>
+    <string>/tmp/midnightceo-launchd-stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/midnightceo-launchd-stderr.log</string>
+
+    <!--
+      Environment variables — ensure PATH includes all common binary locations
+      so docker and cloudflared can be found.
+    -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>/Users/__USER__</string>
+    </dict>
+
+    <!-- Working directory for docker compose -->
+    <key>WorkingDirectory</key>
+    <string>/tmp</string>
+
+    <!--
+      Process type: Background — tells macOS this is a background service
+      and should not be throttled like an interactive app.
+    -->
+    <key>ProcessType</key>
+    <string>Background</string>
+
+    <!--
+      Nice value: run at slightly lower priority than interactive processes
+      so that the user's foreground apps remain responsive.
+    -->
+    <key>Nice</key>
+    <integer>5</integer>
+
+    <!--
+      Soft resource limits to prevent runaway processes from consuming
+      all system resources.
+    -->
+    <key>SoftResourceLimits</key>
+    <dict>
+        <key>NumberOfFiles</key>
+        <integer>4096</integer>
+    </dict>
+    <key>HardResourceLimits</key>
+    <dict>
+        <key>NumberOfFiles</key>
+        <integer>8192</integer>
+    </dict>
+</dict>
+</plist>

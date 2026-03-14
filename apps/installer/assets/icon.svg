@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Background circle — dark slate -->
+  <circle cx="256" cy="256" r="248" fill="#0f172a" stroke="#334155" stroke-width="4"/>
+  <!-- "M" letterform — blue -->
+  <polygon points="110,380 110,160 146,160 216,296 256,216 296,296 366,160 402,160 402,380 366,380 366,240 306,364 256,272 206,364 146,240 146,380" fill="#3b82f6"/>
+  <!-- Crown dots -->
+  <circle cx="256" cy="120" r="10" fill="#60a5fa"/>
+  <circle cx="206" cy="136" r="6" fill="#60a5fa" opacity="0.7"/>
+  <circle cx="306" cy="136" r="6" fill="#60a5fa" opacity="0.7"/>
+</svg>

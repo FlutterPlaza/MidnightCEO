@@ -1,0 +1,177 @@
+version: "3.9"
+
+# =============================================================================
+# MidnightCEO — Local Compute Mode Docker Compose
+# =============================================================================
+#
+# This compose file runs the full MidnightCEO agent stack on a local machine.
+# It is separate from the dev compose in infra/ — this one uses pre-built
+# images from the MidnightCEO registry and is designed for founder machines.
+#
+# Configuration is read from ~/.midnightceo/.env
+#
+# Usage:
+#   docker compose -f docker-compose.local.yml up -d
+#   docker compose -f docker-compose.local.yml down
+#
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Redis — in-memory cache and message broker for agent coordination
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: midnightceo-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: >
+      redis-server
+        --appendonly yes
+        --maxmemory 512mb
+        --maxmemory-policy allkeys-lru
+        --tcp-backlog 128
+        --save 60 1000
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ---------------------------------------------------------------------------
+  # Backend API — FastAPI application serving the agent runtime endpoints
+  # ---------------------------------------------------------------------------
+  backend:
+    image: ghcr.io/flutterplaza/midnightceo-agents:latest
+    container_name: midnightceo-backend
+    restart: always
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - APP_ENV=local
+      - COMPUTE_MODE=local
+    volumes:
+      - agent-state:/app/state
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ---------------------------------------------------------------------------
+  # Agent Workers — runs the AI agent task execution loop
+  # ---------------------------------------------------------------------------
+  agent-workers:
+    image: ghcr.io/flutterplaza/midnightceo-agents:latest
+    container_name: midnightceo-agent-workers
+    restart: always
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - BACKEND_URL=http://backend:8000
+      - APP_ENV=local
+      - COMPUTE_MODE=local
+    volumes:
+      - agent-state:/app/state
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8001/health').raise_for_status()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 4G
+        reservations:
+          cpus: "1.0"
+          memory: 1G
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ---------------------------------------------------------------------------
+  # Cloudflare Tunnel — exposes the local backend to the internet so the
+  # Founder Console and webhooks can reach this machine
+  # ---------------------------------------------------------------------------
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: midnightceo-tunnel
+    restart: always
+    command: tunnel --url http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "cloudflared", "tunnel", "info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# =============================================================================
+# Named volumes — persist data across container restarts
+# =============================================================================
+volumes:
+  redis-data:
+    driver: local
+  agent-state:
+    driver: local

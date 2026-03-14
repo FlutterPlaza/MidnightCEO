@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+  MidnightCEO Local Compute Mode — LaunchAgent
+
+  This plist starts the MidnightCEO Docker containers on user login and
+  keeps them alive.  It is installed to ~/Library/LaunchAgents/ by the
+  setup script.
+
+  To load manually:
+    launchctl load ~/Library/LaunchAgents/com.midnightceo.local.plist
+
+  To unload:
+    launchctl unload ~/Library/LaunchAgents/com.midnightceo.local.plist
+-->
+<dict>
+    <!-- Service identifier -->
+    <key>Label</key>
+    <string>com.midnightceo.local</string>
+
+    <!-- Command to run -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/docker</string>
+        <string>compose</string>
+        <string>-f</string>
+        <string>/Users/PLACEHOLDER/.midnightceo/docker-compose.local.yml</string>
+        <string>up</string>
+        <string>-d</string>
+    </array>
+
+    <!-- Start on login -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Restart if the process exits with a failure -->
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+
+    <!-- Throttle restarts to prevent tight loops -->
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+
+    <!-- Logging -->
+    <key>StandardOutPath</key>
+    <string>/Users/PLACEHOLDER/.midnightceo/launchd-stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/PLACEHOLDER/.midnightceo/launchd-stderr.log</string>
+
+    <!-- Environment — ensure docker and brew binaries are on PATH -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin</string>
+    </dict>
+
+    <!-- Working directory -->
+    <key>WorkingDirectory</key>
+    <string>/Users/PLACEHOLDER/.midnightceo</string>
+</dict>
+</plist>
