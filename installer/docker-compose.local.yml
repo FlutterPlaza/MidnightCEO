@@ -1,0 +1,60 @@
+version: "3.9"
+
+# =============================================================================
+# MidnightCEO — Local Compute Docker Stack
+#
+# Runs the agent backend, Redis task queue, and Cloudflare Tunnel on the
+# founder's MacBook. Database and web console remain in the cloud.
+# =============================================================================
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: mce-redis
+    restart: always
+    ports:
+      - "127.0.0.1:6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  api:
+    image: ghcr.io/flutterplaza/midnightceo-backend:latest
+    container_name: mce-api
+    restart: always
+    ports:
+      - "127.0.0.1:8000:8000"
+    env_file:
+      - ${HOME}/.midnightceo/.env
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - agent-state:/app/state
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: mce-tunnel
+    restart: always
+    command: tunnel --url http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  redis-data:
+    driver: local
+  agent-state:
+    driver: local

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.midnightceo.local</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/midnightceo</string>
+        <string>start</string>
+        <string>--background</string>
+    </array>
+
+    <!-- Start automatically on login -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Restart if the process exits -->
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Throttle restarts to avoid rapid cycling -->
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+
+    <!-- Mark as interactive to influence macOS scheduling -->
+    <key>ProcessType</key>
+    <string>Interactive</string>
+
+    <!-- Log output -->
+    <key>StandardOutPath</key>
+    <string>__HOME__/.midnightceo/logs/launchagent-stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>__HOME__/.midnightceo/logs/launchagent-stderr.log</string>
+
+    <!-- Working directory -->
+    <key>WorkingDirectory</key>
+    <string>__HOME__/.midnightceo</string>
+</dict>
+</plist>
